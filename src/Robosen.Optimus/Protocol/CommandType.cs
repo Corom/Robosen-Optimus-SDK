@@ -1,0 +1,72 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Robosen.Optimus.Protocol
+{
+    public enum CommandType
+    {
+        FailureCommand                          = -1, // not a valid over the wire command
+        InstructMoves                           = 0x00,
+        MoveNorth                               = 0x01,
+        MoveNE                                  = 0x02,
+        MoveEast                                = 0x03,
+        MoveSE                                  = 0x04,
+        MoveSouth                               = 0x05,
+        MoveSW                                  = 0x06,
+        MoveWest                                = 0x07,
+        MoveNW                                  = 0x08,
+        RegularMoves                            = 0x09,
+        Transform                               = 0x0A,
+        HandShake                               = 0x0B,
+        StopMove                                = 0x0C,
+        VoiceControl                            = 0x0D,
+        NoneUsed                                = 0x0E,
+        States                                  = 0x0F,
+        GetUserActionName                       = 0x10,
+        GyrosOfforOn                            = 0x11,
+        RobotAutoOff                            = 0x13,
+        GetOffActionName                        = 0x14,
+        OfficialMoves                           = 0x15, 
+        GetFolderActionNames                    = 0x16,
+        FolderActionNameMovesOrActionProgress   = 0x17,
+        GetFolderAudioNames                     = 0x18,
+        PlayAudioInFolder                       = 0x19,
+        SetAutoTurn                             = 0x1A,
+        SetAutoPose                             = 0x1B,
+        forward                                 = 0x33,
+        back                                    = 0x34,
+        fire                                    = 0x36,
+        Turn_left                               = 0x37,
+        Turn_right                              = 0x38,
+        shift_left                              = 0x39,
+        right_shift                             = 0x3A,
+        Eye_lights_are_always_on                = 0xD3,
+        blinking_eye_lights                     = 0xD4,
+        Excessive_discoloration                 = 0xD5,
+        breathing_light                         = 0xD6,
+        Marquee                                 = 0xD7,
+        CreatNewRobotActionFileAndDone          = 0xDC,
+        DeleteActionByFilePath                  = 0xDD,
+        WriteDataToNewFileAndWriteSuccess       = 0xE3,
+        InEditor                                = 0xE6,
+        ExitEditor                              = 0xE7,
+        MoveJoint                               = 0xE8,
+        RobotUpJoint                            = 0xE9,
+        UnLockAllJoint                          = 0xEA,
+        LockAllJoint                            = 0xEB,
+        OneJointLockControl                     = 0xEC,
+        JointLockControl                        = 0xED,
+        PlayAudioControl                        = 0xEE,
+        RobotNormalPos                          = 0xF4,
+        RobotOnUSBMode                          = 0xF5,
+        GetRobotKindName                        = 0xF6,
+        GetRobotVersion                         = 0xF7,
+        GetRobotVersionDate                     = 0xF8,
+        GetFileNameDone                         = 0xFA,
+        RobotShutDown                           = 0xFA,
+        NonType                                 = 0xFF,
+    }
+}
