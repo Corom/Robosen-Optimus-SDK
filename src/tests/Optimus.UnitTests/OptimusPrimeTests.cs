@@ -17,25 +17,22 @@ namespace Optimus.UnitTests
         [Fact]
         public async Task Can_Timeout_When_Connecting()
         {
-            MockBluetooth bt = new MockBluetooth();
-            Stopwatch sw = Stopwatch.StartNew();
-            var robot = await OptimusPrime.ConnectToFirst(bt, TimeSpan.FromMilliseconds(200));
-            sw.Stop();
+            MockBluetooth bluetooth = new MockBluetooth();
+            var robot = await OptimusPrime.ConnectToFirst(bluetooth, TimeSpan.FromMilliseconds(10));
             Assert.Null(robot);
-            Assert.True(sw.ElapsedMilliseconds > 190 && sw.ElapsedMilliseconds < 250);
         }
 
         [Fact]
         public async Task Can_Connect()
         {
-            MockBluetooth bt = new MockBluetooth();
-            var connectTask = OptimusPrime.ConnectToFirst(bt, TimeSpan.FromSeconds(10));
+            MockBluetooth bluetooth = new MockBluetooth();
+            var connectTask = OptimusPrime.ConnectToFirst(bluetooth, TimeSpan.FromSeconds(10));
             
             var device = new MockBluetoothDevice(MockDeviceName, MockManufacturerData);
-            bt.ActiveScan!.AdvertiseDevice(device);
+            bluetooth.ActiveScan!.AdvertiseDevice(device);
             var robot = await connectTask;
 
-            Assert.Null(bt.ActiveScan);
+            Assert.Null(bluetooth.ActiveScan);
             Assert.Equal(device.Name, robot!.Name);
             Assert.True(device.IsConnected);
             Assert.NotNull(device.ActiveConnection);
