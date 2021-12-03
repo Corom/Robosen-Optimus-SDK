@@ -37,7 +37,7 @@ namespace Robosen.Optimus.Protocol
             if (data.Length < 5)
                 return false;
             return Header.All(b => b == 0xFF)
-                && CommandLength == data.Length - 4
+                && CommandLength == data.Length - 3
                 && Checksum == CalulateCheckSum(data);
         }
 
