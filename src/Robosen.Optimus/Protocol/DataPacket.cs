@@ -16,7 +16,7 @@ namespace Robosen.Optimus.Protocol
      CheckSum = Sum of Bytes excluding header % 256
      ****************************************************************************/
 
-    public class DataPacket
+    public struct DataPacket
     {
         private readonly byte[] data;
 
@@ -117,17 +117,13 @@ namespace Robosen.Optimus.Protocol
 
         #region operator overloading
 
-        public override bool Equals(object? obj) => Data.Equals(obj as byte[] ?? (obj as DataPacket)?.Data);
+        public override bool Equals(object? obj) => Data.Equals(obj as byte[] ?? ((obj is DataPacket) ? ((DataPacket)obj).Data : null));
 
         public override int GetHashCode() => Data.GetHashCode();
 
-        #pragma warning disable CS8603 // Possible null reference return.
+        public static implicit operator byte[](DataPacket packet) => packet.Data;
 
-        public static implicit operator byte[](DataPacket packet) => packet?.Data;
-
-        public static explicit operator DataPacket(byte[] data) => data == null ? null : new DataPacket(data);
-
-        #pragma warning restore CS8603 // Possible null reference return.
+        public static explicit operator DataPacket(byte[] data) => new DataPacket(data);
 
         #endregion
     }

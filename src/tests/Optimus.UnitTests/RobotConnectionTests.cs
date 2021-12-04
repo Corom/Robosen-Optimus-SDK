@@ -109,7 +109,7 @@ namespace Optimus.UnitTests
             Assert.False(reader.Completion.IsCompleted);
             Assert.True(robot.CommandIsActive);
 
-            DataPacket? response;
+            DataPacket response;
             Assert.False(reader.TryRead(out response));
 
             conn.Recieve(dataToRecieveFirst);
