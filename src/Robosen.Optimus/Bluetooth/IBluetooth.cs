@@ -10,18 +10,4 @@ namespace Robosen.Optimus.Bluetooth
     {
         Task<IDisposable> BeginDeviceScanAsync(ushort manufacturerId, Action<IBluetoothDevice> callback);
     }
-
-    public interface IBluetoothDevice
-    {
-        byte[] ManufacturerData { get; }
-        string Name { get; }
-        bool IsConnected { get; }
-        Task<IBluetoothConnection> ConnectAsync(ushort serviceId, ushort characteristicId);
-    }
-
-    public interface IBluetoothConnection : IDisposable
-    {
-        Action<byte[]>? RecieveDataCallback { get; set; }
-        Task SendData(byte[] data);
-    }
 }

@@ -16,7 +16,7 @@ namespace Robosen.Optimus
         private const ushort RobotGattCharacteristicId = 0xFFE1;
 
         private IBluetoothConnection connection;
-        private Command activeCommand = null;
+        private Command? activeCommand = null;
 
         internal RobotConnection(string name, IBluetoothConnection connection)
         {
@@ -27,12 +27,13 @@ namespace Robosen.Optimus
 
         public string Name { get; }
 
-        public Action<DataPacket>? OnOutOfBandNotification { get; set; }
+        public Action<DataPacket>? OutOfBandNotificationCallback { get; set; }
+
+        public bool CommandIsActive => activeCommand != null;
 
         private void RecieveData(byte[] data)
         {
             var response = new DataPacket(data);
-            // TODO: should validate the response here 
 
             if (activeCommand != null)
             {
@@ -42,45 +43,48 @@ namespace Robosen.Optimus
                     activeCommand = null;
                 }
             }
-            else if (OnOutOfBandNotification != null)
+            else if (OutOfBandNotificationCallback != null)
             {
-                OnOutOfBandNotification(response);
+                OutOfBandNotificationCallback(response);
             }
         }
 
         public async Task SendWithoutResponseAsync(DataPacket data)
         {
-            if (!data.IsValid())
-                throw new ArgumentException("The Data packet is invalid", nameof(data));
+            data.EnsureIsValid();
+
+            if (activeCommand != null)
+                throw new OverlappingCommandException(activeCommand.SentData.CommandType);
 
             await connection.SendData(data.Data);
         }
 
         public async Task<DataPacket> SendWithResponseAsync(DataPacket data, CommandType responseType)
         {
-            if (!data.IsValid())
-                throw new ArgumentException("The Data packet is invalid", nameof(data));
-
-            var channel = await SendWithResponsesAsync(data, responseType);
-            var response = await channel.ReadAsync();
-            
-            // TODO: is this the right thing to do here?
-            if (response.CommandType != responseType)
-                throw new InvalidOperationException($"An unexpected response of type {response.CommandType} was recieved when {responseType} was expected");
-
-            return response;
+            var channel = await SendWithResponsesAsync(data, responseType, multipleResponses: false);
+            try
+            {
+                return await channel.ReadAsync();
+            }
+            catch (ChannelClosedException e) when (e.InnerException is RobotException)
+            {
+                throw e.InnerException;
+            }
         }
 
-        public async Task<ChannelReader<DataPacket>> SendWithResponsesAsync(DataPacket data, CommandType responseType)
+        public Task<ChannelReader<DataPacket>> SendWithResponsesAsync(DataPacket data, CommandType responseType)
         {
-            if (!data.IsValid())
-                throw new ArgumentException("The Data packet is invalid", nameof(data));
+            return SendWithResponsesAsync(data, responseType, multipleResponses: true);
+        }
 
-            // TODO: what to do when there is already an active command
+        private async Task<ChannelReader<DataPacket>> SendWithResponsesAsync(DataPacket data, CommandType responseType, bool multipleResponses)
+        {
+            data.EnsureIsValid();
+
             if (activeCommand != null)
-                throw new InvalidOperationException("There is already an active command that has not completed");
+                throw new OverlappingCommandException(activeCommand.SentData.CommandType);
 
-            activeCommand = new Command(responseType);
+            activeCommand = new Command(data, responseType, multipleResponses);
             await connection.SendData(data.Data);
 
             return activeCommand.Reader;
@@ -94,17 +98,29 @@ namespace Robosen.Optimus
         private class Command
         {
             private readonly CommandType responseType;
+            private readonly bool multipleResponses;
             private readonly Channel<DataPacket> channel;
 
-            public Command (CommandType responseType)
+            public Command (DataPacket sentData, CommandType responseType, bool multipleResponses)
             {
+                SentData = sentData;
                 this.responseType = responseType;
-                channel = Channel.CreateUnbounded<DataPacket>();
+                this.multipleResponses = multipleResponses;
+                channel = multipleResponses ? Channel.CreateUnbounded<DataPacket>() : Channel.CreateBounded<DataPacket>(1);
             }
+
+            public ChannelReader<DataPacket> Reader => channel.Reader;
+
+            public DataPacket SentData { get; }
 
             internal bool RecieveData(DataPacket response)
             {
-                // TODO: does this always succeed because it is unbounded?
+                if (!multipleResponses && response.CommandType != responseType)
+                {
+                    channel.Writer.Complete(new UnexpectedResponseException(responseType, response));
+                    return true;
+                }
+
                 channel.Writer.TryWrite(response);
 
                 if (response.CommandType == responseType)
@@ -112,10 +128,9 @@ namespace Robosen.Optimus
                     channel.Writer.Complete();
                     return true;
                 }
+                
                 return false;
             }
-
-            public ChannelReader<DataPacket> Reader => channel.Reader;
         }
 
 

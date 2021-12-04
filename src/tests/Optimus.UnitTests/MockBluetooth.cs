@@ -1,4 +1,5 @@
 ﻿using Robosen.Optimus.Bluetooth;
+using Robosen.Optimus.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -69,7 +70,7 @@ namespace Optimus.UnitTests
 
         public bool IsConnected => ActiveConnection != null;
 
-        public IBluetoothConnection? ActiveConnection { get; internal set; }
+        public MockBluetoothConnection? ActiveConnection { get; internal set; }
 
         public async Task<IBluetoothConnection> ConnectAsync(ushort serviceId, ushort characteristicId)
         {
@@ -102,6 +103,11 @@ namespace Optimus.UnitTests
             {
                 RecieveDataCallback(data);
             }
+        }
+
+        public void Recieve(DataPacket packet)
+        {
+            RecieveData(packet.Data);
         }
 
         public void Dispose()

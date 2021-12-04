@@ -38,13 +38,25 @@ namespace Robosen.Optimus.Protocol
 
         public byte[] Data => data;
 
-        public bool IsValid()
+        public bool IsValid() => EnsureIsValid(throws: false);
+
+        public void EnsureIsValid() => EnsureIsValid(throws: true);
+
+        private bool EnsureIsValid(bool throws)
         {
             if (data.Length < 5)
-                return false;
-            return Header.All(b => b == 0xFF)
-                && CommandLength == data.Length - 3
-                && Checksum == CalulateCheckSum(data);
+                return throws ? throw new InvalidDataPacketException("The data packet is too small") : false;
+
+            if (Header.Any(b => b != 0xFF))
+                return throws ? throw new InvalidDataPacketException("The data packet header is invalid") : false;
+
+            if (CommandLength != data.Length - 3)
+                return throws ? throw new InvalidDataPacketException("The data packet command length is incorrect") : false;
+            
+            if (Checksum != CalulateCheckSum(data))
+                return throws ? throw new InvalidDataPacketException("The data packet checksum is invalid") : false;
+            
+            return true;
         }
 
         public IEnumerable<byte> Header => data.Take(2);
@@ -102,5 +114,21 @@ namespace Robosen.Optimus.Protocol
             //Or the two combined, but a bit slower:
             return val - (val < 58 ? 48 : (val < 97 ? 55 : 87));
         }
+
+        #region operator overloading
+
+        public override bool Equals(object? obj) => Data.Equals(obj as byte[] ?? (obj as DataPacket)?.Data);
+
+        public override int GetHashCode() => Data.GetHashCode();
+
+        #pragma warning disable CS8603 // Possible null reference return.
+
+        public static implicit operator byte[](DataPacket packet) => packet?.Data;
+
+        public static explicit operator DataPacket(byte[] data) => data == null ? null : new DataPacket(data);
+
+        #pragma warning restore CS8603 // Possible null reference return.
+
+        #endregion
     }
 }
