@@ -4,30 +4,15 @@ namespace Robosen.Optimus
 {
     public class OptimusPrime : IDisposable
     {
-        private const ushort RobosenManufacturerId = 0x15b1;
-        private const ushort RobotGattServiceId = 0xFFE0;
-        private const ushort RobotGattCharacteristicId = 0xFFE1;
+        private readonly RobotConnection connection;
 
-        private readonly IBluetoothConnection connection;
-
-        private OptimusPrime(string name, IBluetoothConnection connection)
+        private OptimusPrime(RobotConnection connection)
         {
-            Name = name;
             this.connection = connection;
-            connection.RecieveDataCallback = RecieveData;
         }
 
-        public string Name { get; }
+        public string Name => connection.Name;
 
-        private void RecieveData(byte[] data)
-        {
-            Console.WriteLine($"{data.Length} = {string.Join(" ", data.Select(b => string.Format("{0:X2}", b)))}");
-        }
-
-        public async Task SendDataAsync(byte[] data)
-        {
-            await connection.SendData(data);
-        }
 
         public void Dispose()
         {
@@ -40,21 +25,10 @@ namespace Robosen.Optimus
         public static async Task<OptimusPrime?> ConnectToFirst(IBluetooth bluetooth, TimeSpan timeout)
         {
             if (bluetooth is null)
-            {
                 throw new ArgumentNullException(nameof(bluetooth));
-            }
 
-            var deviceSource = new TaskCompletionSource<IBluetoothDevice>();
-            using (var scan = await bluetooth.BeginDeviceScanAsync(RobosenManufacturerId, dev => deviceSource.SetResult(dev)))
-            {
-                await Task.WhenAny(deviceSource.Task, Task.Delay(timeout));
-                // if we timeout return null
-                if (!deviceSource.Task.IsCompleted)
-                    return null;
-            }
-
-            var connection = await deviceSource.Task.Result.ConnectAsync(RobotGattServiceId, RobotGattCharacteristicId);
-            return new OptimusPrime(deviceSource.Task.Result.Name, connection);
+            var connection = await RobotConnection.ConnectToFirst(bluetooth, timeout);
+            return connection != null ? new OptimusPrime(connection) : null;
         }
 
         #endregion
