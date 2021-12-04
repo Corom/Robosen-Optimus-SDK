@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace Robosen.Optimus
@@ -15,6 +16,7 @@ namespace Robosen.Optimus
         private const ushort RobotGattCharacteristicId = 0xFFE1;
 
         private IBluetoothConnection connection;
+        private Command activeCommand = null;
 
         internal RobotConnection(string name, IBluetoothConnection connection)
         {
@@ -25,10 +27,25 @@ namespace Robosen.Optimus
 
         public string Name { get; }
 
+        public Action<DataPacket>? OnOutOfBandNotification { get; set; }
 
         private void RecieveData(byte[] data)
         {
-            Console.WriteLine($"{data.Length} = {string.Join(" ", data.Select(b => string.Format("{0:X2}", b)))}");
+            var response = new DataPacket(data);
+            // TODO: should validate the response here 
+
+            if (activeCommand != null)
+            {
+                if (activeCommand.RecieveData(response))
+                {
+                    // the command is complete
+                    activeCommand = null;
+                }
+            }
+            else if (OnOutOfBandNotification != null)
+            {
+                OnOutOfBandNotification(response);
+            }
         }
 
         public async Task SendDataAsync(DataPacket data)
@@ -39,10 +56,68 @@ namespace Robosen.Optimus
             await connection.SendData(data.Data);
         }
 
+        public async Task<DataPacket> SendDataWithResponseAsync(DataPacket data, CommandType responseType)
+        {
+            if (!data.IsValid())
+                throw new ArgumentException("The Data packet is invalid", nameof(data));
+
+            var channel = await SendDataWithResponsesAsync(data, responseType);
+            var response = await channel.ReadAsync();
+            
+            // TODO: is this the right thing to do here?
+            if (response.CommandType != responseType)
+                throw new InvalidOperationException($"An unexpected response of type {response.CommandType} was recieved when {responseType} was expected");
+
+            return response;
+        }
+
+        public async Task<ChannelReader<DataPacket>> SendDataWithResponsesAsync(DataPacket data, CommandType responseType)
+        {
+            if (!data.IsValid())
+                throw new ArgumentException("The Data packet is invalid", nameof(data));
+
+            // TODO: what to do when there is already an active command
+            if (activeCommand != null)
+                throw new InvalidOperationException("There is already an active command that has not completed");
+
+            activeCommand = new Command(responseType);
+            await connection.SendData(data.Data);
+
+            return activeCommand.Reader;
+        }
+
         public void Dispose()
         {
             connection.Dispose();
         }
+
+        private class Command
+        {
+            private readonly CommandType responseType;
+            private readonly Channel<DataPacket> channel;
+
+            public Command (CommandType responseType)
+            {
+                this.responseType = responseType;
+                channel = Channel.CreateUnbounded<DataPacket>();
+            }
+
+            internal bool RecieveData(DataPacket response)
+            {
+                // TODO: does this always succeed because it is unbounded?
+                channel.Writer.TryWrite(response);
+
+                if (response.CommandType == responseType)
+                {
+                    channel.Writer.Complete();
+                    return true;
+                }
+                return false;
+            }
+
+            public ChannelReader<DataPacket> Reader => channel.Reader;
+        }
+
 
         #region Static factory methods
 
