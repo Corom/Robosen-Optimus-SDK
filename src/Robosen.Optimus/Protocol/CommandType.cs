@@ -8,7 +8,7 @@ namespace Robosen.Optimus.Protocol
 {
     public enum CommandType
     {
-        FailureCommand                          = -1, // not a valid over the wire command
+        Invalid                                 = -1, // not a valid over the wire command
         InstructMoves                           = 0x00,
         MoveNorth                               = 0x01,
         MoveNE                                  = 0x02,
@@ -67,6 +67,6 @@ namespace Robosen.Optimus.Protocol
         GetRobotVersionDate                     = 0xF8,
         GetFileNameDone                         = 0xFA,
         RobotShutDown                           = 0xFA,
-        NonType                                 = 0xFF,
+        Failure                                 = 0xFF,
     }
 }
