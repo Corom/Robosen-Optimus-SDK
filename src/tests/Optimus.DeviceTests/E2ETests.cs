@@ -28,12 +28,12 @@ namespace Optimus.DeviceTests
         public async Task TestDevice()
         {
             // handshake
-            await robot.SendDataAsync(new DataPacket("ffff020b0d"));
+            await robot.SendWithoutResponseAsync(new DataPacket("ffff020b0d"));
 
             await Task.Delay(2000);
 
             // GetUserActionName 
-            await robot.SendDataAsync(new DataPacket("ffff021012"));
+            await robot.SendWithoutResponseAsync(new DataPacket("ffff021012"));
 
             await Task.Delay(2000);
 

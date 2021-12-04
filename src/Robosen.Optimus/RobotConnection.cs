@@ -48,7 +48,7 @@ namespace Robosen.Optimus
             }
         }
 
-        public async Task SendDataAsync(DataPacket data)
+        public async Task SendWithoutResponseAsync(DataPacket data)
         {
             if (!data.IsValid())
                 throw new ArgumentException("The Data packet is invalid", nameof(data));
@@ -56,12 +56,12 @@ namespace Robosen.Optimus
             await connection.SendData(data.Data);
         }
 
-        public async Task<DataPacket> SendDataWithResponseAsync(DataPacket data, CommandType responseType)
+        public async Task<DataPacket> SendWithResponseAsync(DataPacket data, CommandType responseType)
         {
             if (!data.IsValid())
                 throw new ArgumentException("The Data packet is invalid", nameof(data));
 
-            var channel = await SendDataWithResponsesAsync(data, responseType);
+            var channel = await SendWithResponsesAsync(data, responseType);
             var response = await channel.ReadAsync();
             
             // TODO: is this the right thing to do here?
@@ -71,7 +71,7 @@ namespace Robosen.Optimus
             return response;
         }
 
-        public async Task<ChannelReader<DataPacket>> SendDataWithResponsesAsync(DataPacket data, CommandType responseType)
+        public async Task<ChannelReader<DataPacket>> SendWithResponsesAsync(DataPacket data, CommandType responseType)
         {
             if (!data.IsValid())
                 throw new ArgumentException("The Data packet is invalid", nameof(data));
