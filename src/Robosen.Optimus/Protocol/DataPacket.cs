@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -36,6 +37,43 @@ namespace Robosen.Optimus.Protocol
         {
         }
 
+        public string ReadAsString()
+        {
+            EnsureIsValid();
+            return Encoding.ASCII.GetString(Payload);
+        }
+
+        public bool ReadAsBoolean()
+        {
+            EnsureIsValid();
+            if (PayloadLength != 1)
+                throw new InvalidDataPacketException($"Incorrect number of bytes in Packet Payload for Boolean. Expected: 1, Acual {PayloadLength}");
+            return BitConverter.ToBoolean(Payload);
+        }
+
+        public byte ReadAsByte()
+        {
+            EnsureIsValid();
+            if (PayloadLength != 1)
+                throw new InvalidDataPacketException($"Incorrect number of bytes in Packet Payload for Byte. Expected: 1, Acual {PayloadLength}");
+            return Payload[0];
+        }
+
+        public T ReadAs<T>() where T : struct
+        {
+            T str = default(T);
+            int size = Marshal.SizeOf(str);
+            if (PayloadLength != size)
+                throw new InvalidDataPacketException($"Incorrect number of bytes in Packet Payload for Byte. Expected: {size}, Acual {PayloadLength}");
+
+            IntPtr ptr = Marshal.AllocHGlobal(size);
+            Marshal.Copy(data, PayloadStart, ptr, PayloadLength);
+            str = Marshal.PtrToStructure<T>(ptr);
+            Marshal.FreeHGlobal(ptr);
+
+            return str;
+        }
+
         public byte[] Data => data;
 
         public bool IsValid() => EnsureIsValid(throws: false);
@@ -62,8 +100,11 @@ namespace Robosen.Optimus.Protocol
         public IEnumerable<byte> Header => data.Take(2);
         public int CommandLength => data[2];
         public CommandType CommandType => (CommandType)data[3];
-        public IEnumerable<byte> CommandData => data.Skip(4).Take(data.Length - 5);
+        public ReadOnlySpan<byte> Payload => new ReadOnlySpan<byte>(data, PayloadStart, PayloadLength);
         public byte Checksum => data[data.Length-1];
+
+        private int PayloadStart = 4;
+        private int PayloadLength => data.Length - 5;
 
         private static byte[] PackData(CommandType commandType, byte[]? commandData)
         {
@@ -115,6 +156,11 @@ namespace Robosen.Optimus.Protocol
             return val - (val < 58 ? 48 : (val < 97 ? 55 : 87));
         }
 
+        public override string ToString()
+        {
+            return data != null ? BitConverter.ToString(data).Replace("-", "") : string.Empty;
+        }
+
         #region operator overloading
 
         public override bool Equals(object? obj) => Data.Equals(obj as byte[] ?? ((obj is DataPacket) ? ((DataPacket)obj).Data : null));
@@ -124,6 +170,10 @@ namespace Robosen.Optimus.Protocol
         public static implicit operator byte[](DataPacket packet) => packet.Data;
 
         public static explicit operator DataPacket(byte[] data) => new DataPacket(data);
+
+        public static implicit operator string(DataPacket packet) => packet.ToString();
+
+        public static implicit operator DataPacket(string data) => new DataPacket(data);
 
         #endregion
     }

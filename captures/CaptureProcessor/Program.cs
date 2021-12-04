@@ -131,11 +131,6 @@ class Packet
     public bool HasData => Data.Length > 0;
     public bool IsTruncated => Data.Contains("\\");
     public CommandType Command => HasData && Data.Length > 6 ? (CommandType)Convert.ToByte(Data.Substring(6, 2), 16) : CommandType.Invalid;
-    
-
-    public DataPacket? ParseData() => HasData ? new DataPacket(Data) : null;
-
-
 }
 
 static class PacketReader
