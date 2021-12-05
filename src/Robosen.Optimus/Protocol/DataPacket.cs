@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -26,9 +27,38 @@ namespace Robosen.Optimus.Protocol
             this.data = data ?? throw new ArgumentNullException(nameof(data));
         }
 
-        public DataPacket(CommandType commandType, byte[]? commandData = null)
+        public DataPacket(CommandType commandType, byte[]? payload = null)
         {
-            data = PackData(commandType, commandData);
+            data = PackData(commandType, payload);
+        }
+
+        public DataPacket(CommandType commandType, string payload)
+        {
+            var payloadData = Encoding.ASCII.GetBytes(payload);
+            data = PackData(commandType, payloadData);
+        }
+
+        public DataPacket(CommandType commandType, ValueType payload)
+        {
+            int size = Marshal.SizeOf(payload);
+            byte[] payloadData = new byte[size];
+
+            IntPtr ptr = Marshal.AllocHGlobal(size);
+            Marshal.StructureToPtr(payload, ptr, true);
+            Marshal.Copy(ptr, payloadData, 0, size);
+            Marshal.FreeHGlobal(ptr);
+            
+            data = PackData(commandType, payloadData);
+        }
+
+        public DataPacket(CommandType commandType, byte payload)
+        {
+            data = PackData(commandType, new byte[] { payload });
+        }
+
+        public DataPacket(CommandType commandType, bool payload)
+        {
+            data = PackData(commandType, new byte[] { payload ? (byte)1 : (byte)0 });
         }
 
         // for use by tests
@@ -106,16 +136,16 @@ namespace Robosen.Optimus.Protocol
         private int PayloadStart = 4;
         private int PayloadLength => data.Length - 5;
 
-        private static byte[] PackData(CommandType commandType, byte[]? commandData)
+        private static byte[] PackData(CommandType commandType, byte[]? payload)
         {
-            byte[] data = new byte[(commandData?.Length ?? 0) + 5];
+            byte[] data = new byte[(payload?.Length ?? 0) + 5];
             data[0] = 0xFF;
             data[1] = 0xFF;
-            data[2] = (byte)commandType;
-            data[3] = (byte)(data.Length - 3);
-            if (commandData != null)
+            data[2] = (byte)(data.Length - 3);
+            data[3] = (byte)commandType;
+            if (payload != null)
             {
-                commandData.CopyTo(data, 4);
+                payload.CopyTo(data, 4);
             }
             data[data.Length - 1] = CalulateCheckSum(data);
             return data;
@@ -158,12 +188,16 @@ namespace Robosen.Optimus.Protocol
 
         public override string ToString()
         {
-            return data != null ? BitConverter.ToString(data).Replace("-", "") : string.Empty;
+            return data != null ? BitConverter.ToString(data).Replace("-", "").ToLowerInvariant() : string.Empty;
         }
 
         #region operator overloading
 
-        public override bool Equals(object? obj) => Data.Equals(obj as byte[] ?? ((obj is DataPacket) ? ((DataPacket)obj).Data : null));
+        public override bool Equals(object? obj)
+        {
+            byte[]? otherData = obj as byte[] ?? ((obj is DataPacket) ? ((DataPacket)obj).Data : null);
+            return data == otherData || StructuralComparisons.StructuralEqualityComparer.Equals(data, otherData);
+        }
 
         public override int GetHashCode() => Data.GetHashCode();
 
